@@ -1,0 +1,16 @@
+spring: 
+  jpa:
+    database: h2
+    generate-ddl: true
+    properties: 
+      hibernate: 
+        show_sql: true 
+        use_sql_comments: true
+        format_sql: true    database-platform: org.hibernate.dialect.H2Dialect
+  datasource:    type: com.zaxxer.hikari.HikariDataSource    url: jdbc:h2:mem:test    username: sa
+    password:  h2:    console:      enabled: true
+      path: /h2
+    
+ 
+server:  port: 9999
+  
