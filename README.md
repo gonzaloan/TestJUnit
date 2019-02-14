@@ -1,6 +1,4 @@
-# Test JUnit Tutorial
-
-# JUNIT y Test Driven Development
+# JUNIT
 
 ## Terminología 
 
@@ -54,7 +52,7 @@ Las pruebas de dicho elemento deberían estar en una ruta como esta:
 test/java/cl/sodexo/testApp/domain/UserTest.java
 ```
 - Todas las clases de prueba deben tener añadido al final la palabra **Test**.
-- Testear un 70% u 80% de las clases realizadas. Para esto, utilizar el plugin **EclEmma** desde marketplace de Spring Tool Suite ([Instalación JaCoCo](https://www.codeproject.com/Articles/832744/Getting-Started-with-Code-Coverage-by-Jacoco))
+- Buscar siempre tener el mayor porcentaje de cobertura posible de las pruebas, en el mejor de los casos 70% u 80% está perfecto. Para esto, se puede utilizar el plugin **EclEmma** desde marketplace de Spring Tool Suite, que mostrará en una pestaña del IDE la cantidad de cobertura. También es posible crear un reporte que se puede subir a JIRA como prueba de la cobertura que están entregando, esto se hace con JaCoCo.  ([Instalación JaCoCo](https://www.codeproject.com/Articles/832744/Getting-Started-with-Code-Coverage-by-Jacoco))
 
 - Los JUnit Test deben correr rápido, si demoran más de 10 - 15 segundos, significa que hay algo mal, y que se debe refactorizar las pruebas.
 
@@ -78,159 +76,156 @@ public class ArrivalController {
 	
 	@GetMapping(value="{id}")
 	@ResponseBody
-	public Arrival getArrivalById(@PathVariable(value="id") Integer id) {
-		return arrivalRepository.findAllById(id);
+	public Arrival getArrivalById(@PathVariable(value="id") Integer id) throws ArrivalException {
+		Arrival arrival = arrivalService.getArrivalById(id);
+		if(arrival.getCity().isEmpty()) {
+			throw new ArrivalException("Arrival doesn't exist");
+		}
+		return arrival;
 	}
 ```
-2.  Se debe crear un archivo Test para cada controlador, en este caso **ArrivalControllerTest.java**, hacemos un test para cada método en el controlador:
+2.  Se debe crear un archivo Test para cada controlador, en este caso **ArrivalControllerTest.java**, hacemos un test para cada método en el controlador y unos cuantos para verificar los casos de errores:
 ```java
-@RunWith(SpringRunner.class)
-@WebMvcTest(ArrivalController.class)
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(classes = SpringJunitTestApplication.class)
+@SpringBootTest
 public class ArrivalControllerTest {
 
-	@Autowired
-	private MockMvc mvc;
+	private MockMvc mockMvc;
 
-	@MockBean
-	private ArrivalController arrivalController;
+	@Autowired
+	private WebApplicationContext wac;
 
 	Arrival arrival;
-	List<Arrival> allArrivals;
+	
 
 	@Before
 	public void setUp() throws Exception {
+		this.mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
 		arrival = new Arrival();
 		arrival.setId(1);
 		arrival.setCity("Santiago");
-		allArrivals = singletonList(arrival);
 	}
 
 	@Test
-	public void getArrivals() throws Exception {
-      given(arrivalController.getAllArrivals()).willReturn(allArrivals);
-		mvc.perform(get(VERSION + ARRIVAL + "all").contentType(APPLICATION_JSON))
-		.andExpect(status().isOk())
-		.andExpect(jsonPath("$", hasSize(1)))   
-		.andExpect(jsonPath("$[0].city", is(arrival.getCity()))); 
+	public void getAllArrivals() throws Exception {
+		
+		mockMvc.perform(MockMvcRequestBuilders.get(VERSION+ARRIVAL+"all")
+				.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(3)))
+				.andExpect(jsonPath("$[0].city", is(arrival.getCity())))
+				.andDo(print());
+		
+		
 	}
-
+	
+	
 	@Test
 	public void getArrivalsById() throws Exception {
-	      given(arrivalController.getArrivalById(arrival.getId()))
-	      .willReturn(arrival);
-
-		mvc.perform(get(VERSION + ARRIVAL + arrival.getId())
-		.contentType(APPLICATION_JSON))
-		.andExpect(status().isOk())
-		.andExpect(jsonPath("city", is(arrival.getCity())));
+		mockMvc.perform(MockMvcRequestBuilders.get(VERSION + ARRIVAL + arrival.getId())
+				.contentType(MediaType.APPLICATION_JSON))
+					.andExpect(status().isOk())
+					.andExpect(jsonPath("city", is(arrival.getCity())))
+					.andDo(print());
+		
+		
 	}
-}
-```
-El método **getArrivals()** hace lo siguiente: 
 
- -- Crea un método setUp con la anotación **@Before**, que hará que antes
-   de cada test, se cree la entidad **Arrival** y se seteará el valor a
-   probar. Además, creamos una lista de Arrivals, **allArrivals** y le
-   añadimos la entidad creada.
- --  Usando **given** de mockito, nos aseguramos de que el **ArrivalController** que marcamos como *MockBean* retorne una lista de todos los arrivals.
- -- Finalmente realizamos una petición **get**, qué revisará si retorna un status OK, verificará que la respuesta JSON tiene sólo un elemento, y finalmente, si el cuerpo del JSON tiene una llave 'city'   con el value que seteamos anteriormente.
+	@Test
+	public void verifyInvalidArrivalPath() throws Exception {
+		mockMvc.perform(MockMvcRequestBuilders.get(VERSION + ARRIVAL + "pepito/").accept(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.errorCode").value(400))
+				.andExpect(jsonPath("$.message").value("The request could not be understood by the server"))
+				.andDo(print());
+	}
+
+	@Test
+	public void verifyInvalidadArrivalId() throws Exception {
+		mockMvc.perform(MockMvcRequestBuilders.get(VERSION + ARRIVAL + "4").accept(MediaType.APPLICATION_JSON))
+				.andExpect(jsonPath("$.errorCode").value(404))
+				.andExpect(jsonPath("$.message").value("Arrival doesn't exist"))
+				.andDo(print());
+	}
+```
+
+- Las pruebas del controlador son las siguientes:
+ 
+ El método **setUp** tiene la anotación *Before*, esto hace que se ejecute este bloque antes de cada prueba, aquí se realiza lo siguiente:
+ -- Seteamos el WebApplicationContext de la aplicación dentro de *MockMvc*. Esto nos permitirá realizar las peticiones get que probaremos más adelante.
+ -- Seteamos un elemento **Arrival**, este lo llenamos con la información que vamos a probar. Por ejemplo, en la base de datos, existe el id = 1, city = Santiago, tomamos esto y llenamos este objeto, que nos servirá más adelante para probar si lo que retorna los controladores es igual a nuestro *arrival*.
+ 
+El método **getAllArrivals()** hace lo siguiente: 
+
+ -- Realiza una petición de tipo **get** a api/v1/arrival/all. (esto es similar a lo que llamamos desde postman cuando hacemos pruebas regularmente. 
+ --  Verificamos que el tipo que retorna el controlador es JSON. 
+ -- Finalmente, colocamos todo lo que queremos probar sobre la respuesta. Aquí verificamos que retorne un OK (**200**) y analizamos el JSON de respuesta, que tiene 3 elementos y verificamos que el primero de ellos sea igual a *arrival.getCity()*que definimos en el **setUp()**. Además, el *andDo(print()* mostrará la información por consola.
    
 -- El método **getArrivalsById()** hace lo mismo, la única diferencia es que asume un objeto JSON en vez de la lista de Arrivals
-   en el objeto.
+
+-- El método **verifyInvalidArrivalPath()** hace una llamada pero con una ruta inexistente, en este caso: **api/v1/arrival/pepito/** y verificamos que lo que retorne sea un error de tipo 400 con el mensaje correspondiente.
+
+-- El método **verifyInvalidArrivalId()** hace lo mismo que en el *getArrivalsById** con la diferencia que tiene un parámetro inexistente en la base de datos. En el código tenemos una validación que retorna un error de que no existe, y en la prueba verificamos que se lance ese código y mensaje.
 ____
 
 
- 3- Ahora, se debe crear las pruebas de los **Repository**. Esta prueba cubre el testing en la base de datos, como por ejemplo, escribir data en la BD y luego verificar si se almacenó correctamente. Para lo cual, se crea un **ArrivalRepositoryTest** dentro del package correspondiente a repository.
+ 3- Ahora, se debe crear las pruebas de los **Servicios**. Esta prueba cubre el testing en la base de datos, como por ejemplo, escribir data en la BD y luego verificar si se almacenó correctamente. Para lo cual, se crea un **ArrivalRepositoryTest** dentro del package correspondiente a repository.
 ```java
 @RunWith(SpringJUnit4ClassRunner.class)
-@DataJpaTest
-public class ArrivalRepositorytTest{
-
-	@Autowired
-	private TestEntityManager em;
+public class ArrivalServiceTest {
 	
-	@Autowired
+	@Mock
 	private ArrivalRepository arrivalRepository;
 	
-	Arrival firstArrival, secondArrival;
-	
+	@InjectMocks
+	private ArrivalServiceImpl arrivalService;
+
+	Arrival firstArrival, secondArrival; 
 	@Before
 	public void setUp() {
-		//Seteamos los valores que probaremos
+		MockitoAnnotations.initMocks(this);
 		firstArrival = new Arrival();
 		secondArrival = new Arrival();
 		
 		firstArrival.setId(1);
 		firstArrival.setCity("Santiago");
-		
+
 		secondArrival.setId(2);
 		secondArrival.setCity("Buenos Aires");
 	}
 	
 	@Test
-	public void whenFindAll() {
+	public void testGetAllArrivals() {
+		List<Arrival> arrivalList = new ArrayList<Arrival>();
 		
-		//when
-		List<Arrival> arrivals = arrivalRepository.findAll();
+		arrivalList.add(firstArrival);
+		arrivalList.add(secondArrival);
 		
-		//then
-		assertThat(arrivals.size()).isEqualTo(3);
-		assertThat(arrivals.get(0)).isEqualToComparingFieldByField(firstArrival);
-		assertThat(arrivals.get(1)).isEqualToComparingFieldByField(secondArrival);
+		when(arrivalRepository.findAll()).thenReturn(arrivalList);
+		
+		List<Arrival> result = arrivalService.getAllArrivals();
+		assertThat(result.size()).isEqualTo(arrivalList.size());
+		assertThat(result.get(0)).isEqualToComparingFieldByField(firstArrival);
+		assertThat(result.get(1)).isEqualToComparingFieldByField(secondArrival);
 	}
 	
 	@Test
-	public void whenFindAllByID() {
-		//when
-		Arrival testArrival = arrivalRepository.findAllById(firstArrival.getId());
-		
-		//then
-		assertThat(testArrival.getCity()).isEqualTo(firstArrival.getCity());
+	public void testGetArrivalById() {
+		when(arrivalRepository.findById(1)).thenReturn(Optional.of(firstArrival));
+		Arrival result = arrivalService.getArrivalById(1);
+		assertThat(result.getCity()).isEqualTo(firstArrival.getCity());
 	}
-}
-```
-En este ejemplo, se usa la database H2 para probar. Esto es una práctica común, de otra forma, se tendría que mantener la data real, y limpiarla después de cada prueba, en cambio H2 es una base de datos en memoria, luego del test, la BD es eliminada.  Los tests son los siguientes:
-El método **whenFindAll()**:
-- Trae desde el repositorio un findAll(), que llenará *arrivals* con los 3 Arrival que existen por defecto.
-- Luego, se verifica que el tamaño de la lista obtenida sea de tres, y verifica si el valor 0 de la lista es igual a firstArrival y el valor 1 es igual a secondArrival. 
-
-El método **whenFindAllById** hace lo mismo que el anterior, sólo que trae un valor. 
-
-
-Finalmente, podemos verificar que las pruebas tengan una cobertura de 70% u 80% utilizando el plugin de **JaCoCo**. Para ello, agregamos el plugin en el *pom.xml* del proyecto:
-
-```xml
-			<plugin>
-				<groupId>org.jacoco</groupId>
-				<artifactId>jacoco-maven-plugin</artifactId>
-
-				<executions>
-					<execution>
-						<id>default-prepare-agent</id>
-						<goals>
-							<goal>prepare-agent</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>default-report</id>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>report</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
 ```
 
-Y hay que verificar en el **MarketPlace** de STS que esté instalado **EclEMMA**. Con esto listo, se debe ejecutar un **Maven Install**. Esto creará dentro de la carpeta *target* un directorio de jacoco. 
-Para verificar esto, abrir el archivo **target/site/jacoco/index.html**
-## Pasos para realizar TDD
-TDD es un proceso que trata de repetición de un ciclo de desarrollo muy corto. El procedimiento es muy corto
+- Las pruebas del controlador son las siguientes:
+ 
+ Las primeras líneas de la clase definen nuestro **Mock**, Usamos este anotación para crear e injectar instancias. **InjectMocks** inyecta los campos mock dentro del objeto testeado automáticamente. Por lo que lo que hacemos aquí es finalmente inyectar el repositorio en la implementación del servicio. Además, creamos un unos objetos de prueba **Arrival** que tal como en las pruebas anteriores, permitirá chequear que lo que se obtenga de los servicios esté correcto.
 
-- **Escribir un test**: Escribir un test que pruebe una funcionalidad de la historia de usuario o tarea.
-- **Correr todos los tests**: El test debe fallar porque no hay código que lo respalde.
-- **Escribir el código de implementación**: Se escribe la mínima cantidad de código para hacer que el test pase.
-- **Correr todos los tests**: El test debería pasar.
-- **Refactorizar**: Se arregla el código, mejorándolo.
-- **Correr todos los tests**: El test debe seguir pasando.
-
+ El método **testGetAllArrivals()** :
+ -- Creamos una lista y agregamos nuestro *firstArrival* y *secondArrival* que definimos en el SetUp. luego definimos que cuando el repositorio ejecute el método **findAll**. debe traer la lista de Arrivals que creamos antes.
+ -- Luego viene la prueba. Se llama al método desde el **Service** y almacenamos en una lista result. 
+ -- Los siguientes líneas del tipo **assertThat** verifica que el tamaño de la lista obtenida del servicio sea igual a la que definimos cuando escribimos el **when**. Las otras líneas toman el primer y segundo elemento y comparan que sean equivalentes sus campos con el *firstArrival* y *secondArrival*.
+ 
+El método **testGetArrivalById()** :
+ -- Definimos con un **when** qué es lo que debe retornar al ejecutar la llamada *findById(1)* desde el repositorio. En este caso debería retornarnos el *firstArrival*.
+ -- Luego, hacemos la llamada desde el **Servicio** y verificamos con **assertThat** que la ciudad obtenida del resultado sea igual a la ciudad que definimos en **firstArrival**.
