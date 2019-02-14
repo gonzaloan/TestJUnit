@@ -1,5 +1,7 @@
 package com.sodexo.junit.springjunittest.domain;
 
+import java.io.Serializable;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -7,9 +9,17 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name="arrival")
-public class Arrival {
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class Arrival implements Serializable{
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
 	@Id
 	@Column
@@ -39,7 +49,16 @@ public class Arrival {
 	public String toString() {
 		return "Arrival [id=" + id + ", city=" + city + "]";
 	}
-	public Arrival() {}
+
+	public Arrival(String city) {
+		super();
+		this.city = city;
+	}
+
+	public Arrival() {
+		super();
+	}
+	
 	
 	
 }

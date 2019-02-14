@@ -8,7 +8,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sodexo.junit.springjunittest.domain.Arrival;
-import com.sodexo.junit.springjunittest.repository.ArrivalRepository;
+import com.sodexo.junit.springjunittest.exception.ArrivalException;
+import com.sodexo.junit.springjunittest.service.ArrivalService;
 
 import static com.sodexo.junit.springjunittest.constant.Paths.VERSION;
 
@@ -19,19 +20,23 @@ import static com.sodexo.junit.springjunittest.constant.Paths.ARRIVAL;
 @RestController
 @RequestMapping(value= VERSION + ARRIVAL)
 public class ArrivalController {
-
-	@Autowired
-	private ArrivalRepository arrivalRepository;
+	
+	 @Autowired
+	 private ArrivalService arrivalService;
 	
 	@GetMapping(value="all")
 	@ResponseBody
 	public List<Arrival> getAllArrivals(){
-		return arrivalRepository.findAll();
+		return arrivalService.getAllArrivals();
 	}
 	
 	@GetMapping(value="{id}")
 	@ResponseBody
-	public Arrival getArrivalById(@PathVariable(value="id") Integer id) {
-		return arrivalRepository.findAllById(id);
+	public Arrival getArrivalById(@PathVariable(value="id") Integer id) throws ArrivalException {
+		Arrival arrival = arrivalService.getArrivalById(id);
+		if(arrival.getCity().isEmpty()) {
+			throw new ArrivalException("Arrival doesn't exist");
+		}
+		return arrival;
 	}
 }

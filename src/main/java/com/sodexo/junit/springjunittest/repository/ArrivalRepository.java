@@ -1,15 +1,12 @@
 package com.sodexo.junit.springjunittest.repository;
 
-import java.util.List;
 
-import org.springframework.data.repository.PagingAndSortingRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import com.sodexo.junit.springjunittest.domain.Arrival;
 
-public interface ArrivalRepository extends PagingAndSortingRepository<Arrival, Integer>{
-	
-	List<Arrival> findAll();
-	
-	Arrival findAllById(Integer id);
+@Repository
+public interface ArrivalRepository extends JpaRepository<Arrival, Integer>{
 
 }
