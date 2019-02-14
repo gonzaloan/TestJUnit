@@ -58,6 +58,9 @@ test/java/cl/sodexo/testApp/domain/UserTest.java
 
 ## Cómo testear Spring Boot REST APIs
 
+El código que se mostrará aquí pueden descargarlo desde este repositorio:
+https://github.com/gonzaloan/TestJUnit
+
 Tenemos el siguiente ejemplo. 
 
  1. Contamos con un controlador Rest con dos métodos:
@@ -229,3 +232,45 @@ public class ArrivalServiceTest {
 El método **testGetArrivalById()** :
  -- Definimos con un **when** qué es lo que debe retornar al ejecutar la llamada *findById(1)* desde el repositorio. En este caso debería retornarnos el *firstArrival*.
  -- Luego, hacemos la llamada desde el **Servicio** y verificamos con **assertThat** que la ciudad obtenida del resultado sea igual a la ciudad que definimos en **firstArrival**.
+
+## Cobertura de Código:
+
+Para verificar que las pruebas de código han sido suficientes, podemos verificar el porcentaje de cobertura que tienen nuestras pruebas. Para ello necesitamos añadir un plugin de STS llamado **EclEMMA.**
+
+Una vez instalado este plugin, podemos verificar el porcentaje de cobertura haciendo **botón derecho en nuestro proyecto / Coverage As / JUnit Test.**
+
+![enter image description here](https://lh3.googleusercontent.com/JRfaBeM536WTUfeSY5Yfp0JtKqEAz7gG1ohxnUJVUZig6ATj4WajO5nYoK4Oh76Md34Fr_ruDPnA)
+Esto abrirá una pestaña llamada Coverage, con el porcentaje que tiene nuestro proyecto. Y nos marca todos los métodos que no se han testeado correctamente. En este caso, tenemos un porcentaje de cobertura de 94,1%
+
+![
+](https://lh3.googleusercontent.com/OmqjfF13s2-8rm_wvgoGdTpiW-sGN4OqM9EoHAcjffSMX_jwNzH3PWkRkfWScVraAnTFfZEkfcLE "coverage")
+
+También es posible exportar esta verificación y subirla a JIRA. Para esto, necesitamos instalar en el POM un plugin de **JaCoCo**
+
+```xml
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+
+				<executions>
+					<execution>
+						<id>default-prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>default-report</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+```
+Una vez instalado este plugin, con hacer un *Maven Install,* nos creará una carpeta en target, llamada site, con un archivo html con estos cambios, dándonos un informe de la cobertura:
+
+![enter image description here](https://lh3.googleusercontent.com/W0XKt_ldWmUXCnAIgriNraIO6_tC9DXaUWyUG_RRkC7M4P2p4QDk30mSkjhoqljTnRc8pAOWSgQw)
+
+![enter image description here](https://lh3.googleusercontent.com/Zr1n1vxL9cAvYe8kxKsw9tO774lH-Psb2KHgrfJcac4uy0QzN9zXAuQH-ZObpO9962T27mmvZhD9)
